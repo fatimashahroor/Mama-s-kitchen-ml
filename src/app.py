@@ -108,4 +108,4 @@ def process_reviews():
         return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True, host='192.168.1.11', port=5000)

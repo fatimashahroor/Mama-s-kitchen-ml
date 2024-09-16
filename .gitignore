@@ -1,5 +1,5 @@
 .env
-myenv
+myenv/
 data
 openai.env
 src/__pycache__/
