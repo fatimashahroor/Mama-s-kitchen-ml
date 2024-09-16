@@ -3,12 +3,15 @@ import os
 import logging
 from flask import Flask, request, jsonify
 from dotenv import load_dotenv
+import re
 
+# Load environment variables
 load_dotenv('../openai.env')
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
 app = Flask(__name__)
 
+# Set up logging
 logging.basicConfig(level=logging.DEBUG)
 
 def count_tokens(text, model="gpt-3.5-turbo"):
@@ -45,7 +48,7 @@ def classify_and_suggest_multiple_reviews(reviews, max_tokens=4000):
                 temperature=0.7,
                 top_p=0.9
             )
-            all_responses.append(response['choices'][0]['message']['content'].strip())
+            all_responses.append(response.choices[0].message)
             logging.debug(f"Response added for batch ending at review {i}: {response}")
             current_prompt = prompt_base + review_prompt
 
@@ -57,32 +60,43 @@ def classify_and_suggest_multiple_reviews(reviews, max_tokens=4000):
             temperature=0.7,
             top_p=0.9
         )
-        all_responses.append(response['choices'][0]['message']['content'].strip())
+        all_responses.append(response.choices[0].message)
         logging.debug(f"Final batch response received: {response}")
 
     return all_responses
 
-def extract_bad_reviews_with_suggestions(responses):
+def extract_suggestions_from_responses(responses):
     """
-    Extract only bad reviews and their suggestions from the GPT-3 output.
-    Return a combined paragraph of suggestions for all bad reviews,
-    removing 'To improve the dish' and capitalizing the suggestions.
+    Extract and format suggestions from API responses.
+    Handles variations in formats such as 'Bad -', 'Bad.', or 'Bad - suggest', and includes optional detailed introductory phrases.
     """
     suggestions = []
     for response in responses:
-        lines = response.split("\n")
-        for line in lines:
-            if "Bad -" in line:
-                suggestion = line.split("Bad - ", 1)[1].strip()
-                suggestion = suggestion.replace("To improve the dish, ", "").strip()
-                suggestion = suggestion.capitalize()
-                suggestions.append(suggestion)
+        content = response.get('content', '')
+        
+        # Adjust the regex to capture after 'Bad -', 'Bad.' or 'Bad - suggest'
+        matches = re.finditer(r"Bad(?: - suggest)?[. - ]\s*(?:\n\nSuggestion:)?\s*(.+)", content, re.IGNORECASE)
+        for match in matches:
+            suggestion = match.group(1).strip()
+            # Remove any residual leading prompts such as '- suggest' that may still be present
+            suggestion = re.sub(r"^- To improve the dish,", "", suggestion, flags=re.IGNORECASE).strip()
+            # Capitalize the first letter and ensure proper punctuation
+            if suggestion:
+                formatted_suggestion = suggestion[0].upper() + suggestion[1:]
+                if not formatted_suggestion.endswith('.'):
+                    formatted_suggestion += '.'
+                suggestions.append(formatted_suggestion)
+
+    # Log the extracted suggestions for debugging
     logging.debug(f"Extracted suggestions: {suggestions}")
     if suggestions:
+        # Join all suggestions into a single paragraph
         paragraph = " ".join(suggestions)
         return paragraph
     else:
         return "No suggestions to improve the dish."
+
+
 
 @app.route('/process_reviews', methods=['POST'])
 def process_reviews():
@@ -100,7 +114,7 @@ def process_reviews():
         if not reviews:
             return jsonify({"error": "No reviews provided"}), 400
         responses = classify_and_suggest_multiple_reviews(reviews)
-        suggestions_paragraph = extract_bad_reviews_with_suggestions(responses)
+        suggestions_paragraph = extract_suggestions_from_responses(responses)
         return jsonify({"suggestions": suggestions_paragraph}), 200
 
     except Exception as e:
