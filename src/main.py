@@ -108,3 +108,43 @@ def compute_perplexity(loss):
     Compute perplexity based on the model's loss.
     """
     return math.exp(loss)
+import re
+
+def generate_text(model, tokenizer, base_prompt, user_input="", max_length=100):
+    """
+    Generate text using the trained model based on a base prompt followed by user input.
+    """
+    full_prompt = f"{base_prompt} {user_input}" if user_input else base_prompt
+    encoded_input = tokenizer.encode_plus(
+        full_prompt,
+        return_tensors='pt',
+        max_length=max_length,
+        padding="max_length",  
+        truncation=True      
+    )
+    input_ids = encoded_input['input_ids'].to(model.device)
+    attention_mask = encoded_input['attention_mask'].to(model.device)
+    
+    outputs = model.generate(
+        input_ids=input_ids,
+        attention_mask=attention_mask,
+        max_length=max_length + len(input_ids[0]),
+        num_return_sequences=1,
+        no_repeat_ngram_size=2,
+        temperature=0.9, 
+        top_p=0.92,      
+        top_k=50,       
+        do_sample=True,              
+        pad_token_id=tokenizer.pad_token_id  
+    )
+    
+    generated_text = tokenizer.decode(outputs[0], skip_special_tokens=True)
+    processed_text = post_process_generated_text(generated_text)
+    return processed_text
+
+def post_process_generated_text(text):
+    """
+    Post-process the generated text to clean unwanted characters.
+    """
+    text = re.sub(r'[^a-zA-Z,.!? ]+', '', text)
+    return text.strip()
