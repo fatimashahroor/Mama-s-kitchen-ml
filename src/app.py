@@ -82,3 +82,23 @@ def extract_bad_reviews_with_suggestions(responses):
         return paragraph
     else:
         return "No suggestions to improve the dish."
+@app.route('/process_reviews', methods=['POST'])
+def process_reviews():
+    """
+    API endpoint to process reviews. Expects a JSON payload with an array of reviews.
+    Example request payload:
+    {
+        "reviews": ["The chicken was dry.", "The pasta was amazing."]
+    }
+    """
+    try:
+        data = request.json
+        reviews = data.get('reviews', [])
+        if not reviews:
+            return jsonify({"error": "No reviews provided"}), 400
+        responses = classify_and_suggest_multiple_reviews(reviews)
+        suggestions_paragraph = extract_bad_reviews_with_suggestions(responses)
+        return jsonify({"suggestions": suggestions_paragraph}), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
