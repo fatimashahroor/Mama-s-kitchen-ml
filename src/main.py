@@ -148,3 +148,65 @@ def post_process_generated_text(text):
     """
     text = re.sub(r'[^a-zA-Z,.!? ]+', '', text)
     return text.strip()
+from model import load_tokenizer_and_model, GPT2Dataset
+from torch.optim.lr_scheduler import StepLR
+
+def main():
+    args = get_args()
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    logging.info("Loading tokenizer and model...")
+    tokenizer, model = load_tokenizer_and_model(args.model_name)
+    model.to(device)
+
+    logging.info("Loading dataset...")
+    train_texts, val_texts = load_dataset(args.dataset_path)
+    if not train_texts:
+        return
+
+    train_encodings = tokenize_data(train_texts, tokenizer)
+    val_encodings = tokenize_data(val_texts, tokenizer)
+
+    train_dataset = GPT2Dataset(train_encodings)
+    val_dataset = GPT2Dataset(val_encodings)
+
+    train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, collate_fn=partial(collate_batch, tokenizer=tokenizer))
+    val_loader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False, collate_fn=partial(collate_batch, tokenizer=tokenizer))
+
+    optimizer = AdamW(model.parameters(), lr=args.learning_rate, weight_decay=0.01)  
+    scheduler = StepLR(optimizer, step_size=2, gamma=0.1)  # Learning rate scheduler
+
+    best_val_loss = float('inf')
+    patience = 3
+    patience_counter = 0
+
+    logging.info("Starting training...")
+    for epoch in range(args.epochs):
+        train_loss = train(model, train_loader, optimizer, device)
+        val_loss = validate(model, val_loader, device)
+        val_perplexity = compute_perplexity(val_loss)
+        logging.info(f'Epoch {epoch}: Train Loss: {train_loss}, Validation Loss: {val_loss}, Perplexity: {val_perplexity}')
+        scheduler.step()
+
+        sample_text = "[BAD] The chicken was dry, and the sauce was bland. Suggestion:"
+        generated_sample = generate_text(model, tokenizer, sample_text)
+        logging.info(f'Generated text after Epoch {epoch}: {generated_sample}')
+
+        if val_loss < best_val_loss:
+            best_val_loss = val_loss
+            patience_counter = 0
+            logging.info("Validation loss improved, saving model...")
+            model.save_pretrained('models/model_epoch_best')
+            tokenizer.save_pretrained('models/model_epoch_best')
+        else:
+            patience_counter += 1
+            logging.info(f"No improvement in validation loss. Patience counter: {patience_counter}")
+            if patience_counter >= patience:
+                logging.info("Early stopping due to no improvement in validation loss.")
+                break
+
+    model.save_pretrained('models/model_epoch_final')
+    tokenizer.save_pretrained('models/model_epoch_final')
+    logging.info("Model training completed and saved.")
+
+if __name__ == "__main__":
+    main()
