@@ -55,3 +55,8 @@ def load_and_clean_data(filepath):
     df['Cleaned_Suggestion'] = df['Improvement_Suggestion'].apply(normalize_text)
     
     return df
+def save_cleaned_data(df, output_filepath):
+    """ 
+    Save the cleaned data to a new CSV file. 
+    """
+    df.to_csv(output_filepath, index=False)
