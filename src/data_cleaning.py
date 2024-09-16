@@ -60,3 +60,12 @@ def save_cleaned_data(df, output_filepath):
     Save the cleaned data to a new CSV file. 
     """
     df.to_csv(output_filepath, index=False)
+def main():
+    input_filepath = "../data/bad_reviews_dataset.csv"
+    output_filepath = "cleaned_reviews_dataset.csv"
+    
+    df = load_and_clean_data(input_filepath)
+    save_cleaned_data(df, output_filepath)
+
+if __name__ == "__main__":
+    main()
