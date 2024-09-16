@@ -58,3 +58,23 @@ def tokenize_data(texts, tokenizer, max_length=512):
         max_length=max_length, 
         return_tensors='pt'
     )
+from torch.utils.data import Dataset
+
+class GPT2Dataset(Dataset):
+    """
+    GPT2 Dataset for handling the tokenization and encoding of text data.
+    """
+    def __init__(self, encodings):
+        self.encodings = encodings
+
+    def __len__(self):
+        return len(self.encodings['input_ids'])
+
+    def __getitem__(self, idx):
+        """
+        Returns the input_ids and attention_mask at index `idx`.
+        """
+        return {
+            'input_ids': self.encodings['input_ids'][idx],
+            'attention_mask': self.encodings['attention_mask'][idx]
+        }
