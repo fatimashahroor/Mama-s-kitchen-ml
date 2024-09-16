@@ -1,5 +1,6 @@
 import openai
 import os
+import logging
 from flask import Flask, request, jsonify
 from dotenv import load_dotenv
 
@@ -8,28 +9,30 @@ openai.api_key = os.getenv("OPENAI_API_KEY")
 
 app = Flask(__name__)
 
+logging.basicConfig(level=logging.DEBUG)
+
 def count_tokens(text, model="gpt-3.5-turbo"):
     """
     Utility function to estimate the number of tokens for a given text.
     GPT-3.5-turbo uses around 4 tokens per word on average.
     """
-    return len(text.split()) * 4
+    token_count = len(text.split()) * 4
+    logging.debug(f"Token count for the given text is {token_count}")
+    return token_count
+
 def classify_and_suggest_multiple_reviews(reviews, max_tokens=4000):
     """
     Dynamically process multiple reviews in batches based on the token limit.
     Only generate suggestions for bad reviews.
     """
     restricted_words = ['restaurants', 'restaurant', 'your', 'you']
-
     restriction_note = f"Do not use the following words in your suggestions: {', '.join(restricted_words)}.\n\n"
-    
     token_limit = max_tokens - 500
     prompt_base = f"Classify each of the following reviews as 'good' or 'bad'. If it's bad, suggest how to improve the dish. {restriction_note}\n\n"
     current_prompt = prompt_base
     all_responses = []
     for i, review in enumerate(reviews):
         review_prompt = f"Review {i+1}: {review}\n"
-        
         token_count = count_tokens(current_prompt + review_prompt)
         
         if token_count < token_limit:
@@ -43,7 +46,7 @@ def classify_and_suggest_multiple_reviews(reviews, max_tokens=4000):
                 top_p=0.9
             )
             all_responses.append(response['choices'][0]['message']['content'].strip())
-            
+            logging.debug(f"Response added for batch ending at review {i}: {response}")
             current_prompt = prompt_base + review_prompt
 
     if current_prompt != prompt_base:
@@ -54,8 +57,8 @@ def classify_and_suggest_multiple_reviews(reviews, max_tokens=4000):
             temperature=0.7,
             top_p=0.9
         )
-        print(f"Received final batch response: {response}")  # Debugging line
         all_responses.append(response['choices'][0]['message']['content'].strip())
+        logging.debug(f"Final batch response received: {response}")
 
     return all_responses
 
@@ -69,19 +72,18 @@ def extract_bad_reviews_with_suggestions(responses):
     for response in responses:
         lines = response.split("\n")
         for line in lines:
-            if "Bad -" in line:  
-                suggestion = line.split("Bad -", 1)[1].strip()
-                
+            if "Bad -" in line:
+                suggestion = line.split("Bad - ", 1)[1].strip()
                 suggestion = suggestion.replace("To improve the dish, ", "").strip()
-                
                 suggestion = suggestion.capitalize()
-
                 suggestions.append(suggestion)
+    logging.debug(f"Extracted suggestions: {suggestions}")
     if suggestions:
         paragraph = " ".join(suggestions)
         return paragraph
     else:
         return "No suggestions to improve the dish."
+
 @app.route('/process_reviews', methods=['POST'])
 def process_reviews():
     """
@@ -94,6 +96,7 @@ def process_reviews():
     try:
         data = request.json
         reviews = data.get('reviews', [])
+        logging.debug(f"Received reviews: {reviews}")
         if not reviews:
             return jsonify({"error": "No reviews provided"}), 400
         responses = classify_and_suggest_multiple_reviews(reviews)
@@ -101,6 +104,8 @@ def process_reviews():
         return jsonify({"suggestions": suggestions_paragraph}), 200
 
     except Exception as e:
+        logging.error(f"Error processing reviews: {e}")
         return jsonify({"error": str(e)}), 500
+
 if __name__ == '__main__':
     app.run(debug=True)
