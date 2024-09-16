@@ -41,3 +41,20 @@ def load_and_tokenize_data(filepath, tokenizer):
     )
     
     return tokenized_data
+def tokenize_data(texts, tokenizer, max_length=512):
+    """
+    Tokenizes a list of texts using the provided tokenizer.
+    Args:
+        texts (list): A list of text inputs.
+        tokenizer: The tokenizer object from Hugging Face transformers.
+        max_length (int): Maximum sequence length for padding/truncation.
+    Returns:
+        dict: Tokenized inputs as tensors.
+    """
+    return tokenizer(
+        texts, 
+        truncation=True, 
+        padding="max_length", 
+        max_length=max_length, 
+        return_tensors='pt'
+    )
