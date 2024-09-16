@@ -17,3 +17,27 @@ def load_tokenizer_and_model(model_name='gpt2'):
 
     return tokenizer, model
 
+def load_and_tokenize_data(filepath, tokenizer):
+    """
+    Load data from CSV and tokenize using the provided tokenizer.
+    Combines 'Sentiment', 'Review', and 'Improvement_Suggestion'.
+    """
+    df = pd.read_csv(filepath)
+    
+    df['Input'] = df.apply(
+        lambda row: f"[{row['Sentiment'].upper()}] {row['Review']} Suggestion: {row['Improvement_Suggestion']}", 
+        axis=1
+    )
+    
+    df = df.dropna(subset=['Input'])
+    inputs = df['Input'].tolist()
+
+    tokenized_data = tokenizer(
+        inputs, 
+        max_length=512, 
+        truncation=True, 
+        padding="max_length", 
+        return_tensors="pt"
+    )
+    
+    return tokenized_data
