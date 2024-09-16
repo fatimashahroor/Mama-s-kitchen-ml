@@ -59,3 +59,26 @@ def classify_and_suggest_multiple_reviews(reviews, max_tokens=4000):
 
     return all_responses
 
+def extract_bad_reviews_with_suggestions(responses):
+    """
+    Extract only bad reviews and their suggestions from the GPT-3 output.
+    Return a combined paragraph of suggestions for all bad reviews,
+    removing 'To improve the dish' and capitalizing the suggestions.
+    """
+    suggestions = []
+    for response in responses:
+        lines = response.split("\n")
+        for line in lines:
+            if "Bad -" in line:  
+                suggestion = line.split("Bad -", 1)[1].strip()
+                
+                suggestion = suggestion.replace("To improve the dish, ", "").strip()
+                
+                suggestion = suggestion.capitalize()
+
+                suggestions.append(suggestion)
+    if suggestions:
+        paragraph = " ".join(suggestions)
+        return paragraph
+    else:
+        return "No suggestions to improve the dish."
