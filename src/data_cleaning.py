@@ -25,3 +25,25 @@ def get_wordnet_pos(treebank_tag):
         return wordnet.ADV
     else:
         return wordnet.NOUN
+def normalize_text(text):
+    """ 
+    Normalize text by tokenizing, lemmatizing with part-of-speech tags,
+    and selectively retaining significant parts of speech.
+    """
+    if pd.isna(text):
+        return ""  
+    important_stop_words = {'not', 'more', 'very', 'no', 'without', 'less', "and", "n't", "won't", "wouldn't", "isn't", "wasn't", "didn't", "to", "of", "but", "yet", "although", "though"}
+    stop_words_set = set(stopwords.words('english')) - important_stop_words
+
+    lemmatizer = WordNetLemmatizer()
+    words = word_tokenize(text.lower())
+    tagged_words = pos_tag(words)
+
+    lemmatized_words = [
+        lemmatizer.lemmatize(word, get_wordnet_pos(tag)) 
+        for word, tag in tagged_words 
+        if word not in stop_words_set or word in important_stop_words
+    ]
+    cleaned_words = [word for word, tag in pos_tag(lemmatized_words) if tag.startswith(('NN', 'VB', 'JJ', 'RB')) or word in important_stop_words]
+
+    return ' '.join(cleaned_words)
