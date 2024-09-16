@@ -78,3 +78,17 @@ class GPT2Dataset(Dataset):
             'input_ids': self.encodings['input_ids'][idx],
             'attention_mask': self.encodings['attention_mask'][idx]
         }
+def save_model(model, tokenizer, path):
+    """
+    Save the model and tokenizer to the specified path.
+    """
+    model.save_pretrained(path)
+    tokenizer.save_pretrained(path)
+
+def load_model(path):
+    """
+    Load a model from the specified path.
+    """
+    model = GPT2LMHeadModel.from_pretrained(path)
+    tokenizer = GPT2Tokenizer.from_pretrained(path)
+    return model, tokenizer
