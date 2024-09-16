@@ -70,3 +70,41 @@ def collate_batch(batch, tokenizer):
     input_ids = pad_sequence([item['input_ids'] for item in batch], batch_first=True, padding_value=tokenizer.pad_token_id)
     attention_mask = pad_sequence([item['attention_mask'] for item in batch], batch_first=True, padding_value=0)
     return {'input_ids': input_ids, 'attention_mask': attention_mask}
+
+def train(model, train_loader, optimizer, device, max_grad_norm=1.0):
+    """
+    Train the model on the provided dataset and return average loss.
+    """
+    model.train()
+    total_loss = 0
+    for batch in train_loader:
+        inputs, labels = batch['input_ids'].to(device), batch['input_ids'].to(device)
+        outputs = model(inputs, labels=labels)
+        loss = outputs.loss
+        loss.backward()
+        torch.nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm)  # Gradient clipping
+        optimizer.step()
+        optimizer.zero_grad()
+        total_loss += loss.item()
+    average_loss = total_loss / len(train_loader)
+    return average_loss
+
+def validate(model, val_loader, device):
+    """
+    Validation function to evaluate model on a validation set.
+    """
+    model.eval()
+    total_loss = 0
+    with torch.no_grad():
+        for batch in val_loader:
+            inputs, labels = batch['input_ids'].to(device), batch['input_ids'].to(device)
+            outputs = model(inputs, labels=labels)
+            loss = outputs.loss
+            total_loss += loss.item()
+    return total_loss / len(val_loader)
+
+def compute_perplexity(loss):
+    """
+    Compute perplexity based on the model's loss.
+    """
+    return math.exp(loss)
