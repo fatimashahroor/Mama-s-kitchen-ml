@@ -47,3 +47,11 @@ def normalize_text(text):
     cleaned_words = [word for word, tag in pos_tag(lemmatized_words) if tag.startswith(('NN', 'VB', 'JJ', 'RB')) or word in important_stop_words]
 
     return ' '.join(cleaned_words)
+def load_and_clean_data(filepath):
+    """ 
+    Load data from CSV and clean only the 'Improvement_Suggestion' field. 
+    """
+    df = pd.read_csv(filepath)    
+    df['Cleaned_Suggestion'] = df['Improvement_Suggestion'].apply(normalize_text)
+    
+    return df
