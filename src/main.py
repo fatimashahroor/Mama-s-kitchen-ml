@@ -42,3 +42,31 @@ def load_dataset(filepath):
         logging.error(f"Error processing dataset: {str(e)}")
         return [], []
 
+from torch.utils.data import DataLoader
+from torch.nn.utils.rnn import pad_sequence
+
+def tokenize_data(texts, tokenizer, max_length=512):
+    """
+    Tokenizes a list of texts using the provided tokenizer.
+    Args:
+        texts (list): A list of text inputs.
+        tokenizer: The tokenizer object from Hugging Face transformers.
+        max_length (int): Maximum sequence length for padding/truncation.
+    Returns:
+        dict: Tokenized inputs as tensors.
+    """
+    return tokenizer(
+        texts, 
+        truncation=True, 
+        padding="max_length", 
+        max_length=max_length, 
+        return_tensors='pt'
+    )
+
+def collate_batch(batch, tokenizer):
+    """
+    Create a batch for training by padding input_ids and attention_mask.
+    """
+    input_ids = pad_sequence([item['input_ids'] for item in batch], batch_first=True, padding_value=tokenizer.pad_token_id)
+    attention_mask = pad_sequence([item['attention_mask'] for item in batch], batch_first=True, padding_value=0)
+    return {'input_ids': input_ids, 'attention_mask': attention_mask}
